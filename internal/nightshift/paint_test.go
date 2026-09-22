@@ -25,6 +25,9 @@ func fullRun() []string {
 
 func TestPlainStyleIsTheStoredLine(t *testing.T) {
 	for _, line := range fullRun() {
+		if line == waveformLine {
+			continue // the ASCII placeholder renders as the settled signal graph
+		}
 		if got := renderLine(line, style{}); got != line {
 			t.Fatalf("plain render changed %q to %q", line, got)
 		}

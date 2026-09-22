@@ -174,14 +174,26 @@ func burstLines(seed, trigger uint64, phase Phase) []string {
 	if phase < 0 || int(phase) >= phaseCount {
 		phase = PhaseBoot
 	}
+	b := newBurst(seed, trigger, phase)
+	order := templateOrder(seed, phase)
+	pool := phasePools[phase]
+	return pool[order[int(trigger)%len(order)]](b)
+}
+
+func newBurst(seed, trigger uint64, phase Phase) *burst {
+	if phase < 0 || int(phase) >= phaseCount {
+		phase = PhaseBoot
+	}
 	r := &rng{state: splitmix(seed^(trigger+1)*0xa0761d6478bd642f) ^ uint64(phase)*0xe7037ed1a0b428db}
 	b := &burst{r: r, target: pick(r, sites), remote: pick(r, hostile[:])}
 	b.peer = sites[(r.intn(len(sites)-1)+1+indexOf(b.target))%len(sites)]
 	// The shift runs 01:00 to 04:59; each trigger moves the clock on.
 	b.clock = int(splitmix(seed)%4)*3600000 + 3600000 + int(splitmix(seed^1)%1800000) + int(trigger)*47000
-	order := templateOrder(seed, phase)
-	pool := phasePools[phase]
-	return pool[order[int(trigger)%len(order)]](b)
+	return b
+}
+
+func burstTarget(seed, trigger uint64, phase Phase) site {
+	return newBurst(seed, trigger, phase).target
 }
 
 func indexOf(s site) int {
@@ -301,21 +313,20 @@ func dnsLookup(b *burst) []string {
 }
 
 func traceRoute(b *burst) []string {
-	hops := b.r.between(4, 6)
-	lines := []string{prompt("trace -n -q 1 " + b.remote)}
-	latency := 0.3
-	for hop := 1; hop <= hops; hop++ {
-		latency += float64(b.r.between(200, 9000)) / 1000
-		switch {
-		case hop == hops:
-			lines = append(lines, detail("%2d  %-15s %7.3f ms", hop, b.remote, latency))
-		case hop > 1 && b.r.intn(4) == 0:
-			lines = append(lines, detail("%2d  * * *", hop))
-		default:
-			lines = append(lines, detail("%2d  %-15s %7.3f ms", hop, b.docAddr(), latency))
-		}
+	hops := syntheticRoute(b.r)
+	lines := []string{
+		prompt("trace -n -q 1 " + b.remote),
+		traceMapDirective(hops),
 	}
-	return append(lines, warnLine("%s reached in %d hops  ttl %d  asn 64%03d", b.remote, hops, b.r.between(44, 58), b.r.intn(1000)))
+	for hop, city := range hops {
+		if hop == 0 {
+			lines = append(lines, detail("%2d  local -> [%-3s]  %7.3f ms", hop+1, city.city, float64(city.latencyMs)))
+			continue
+		}
+		previous := hops[hop-1].city
+		lines = append(lines, detail("%2d  [%-3s] -> [%-3s]  %7.3f ms", hop+1, previous, city.city, float64(city.latencyMs)))
+	}
+	return append(lines, warnLine("%s reached in %d hops  ttl %d  asn 64%03d", b.remote, len(hops), b.r.between(44, 58), b.r.intn(1000)))
 }
 
 func processList(b *burst) []string {

@@ -428,7 +428,7 @@ func TestBurstSelectionIsSeedAndCount(t *testing.T) {
 				}
 			}
 			known := false
-			for _, prefix := range []string{promptPrefix, okPrefix, warnPrefix, progressPrefix, fieldIndent} {
+			for _, prefix := range []string{promptPrefix, okPrefix, warnPrefix, progressPrefix, fieldIndent, traceMapPrefix, radioPrefix} {
 				known = known || strings.HasPrefix(line, prefix)
 			}
 			if !known {
@@ -460,7 +460,11 @@ func TestBurstSelectionIsSeedAndCount(t *testing.T) {
 	}
 	model := NewModel(Config{Seed: 42, SeedProvided: true})
 	for index := uint64(0); index < 6; index++ {
-		want := strings.Join(append([]string{""}, burstLines(42, index, PhaseBoot)...), "\n")
+		wantLines := append([]string{""}, burstLines(42, index, PhaseBoot)...)
+		if chatter := radioChatter(42, index, PhaseBoot); chatter != "" {
+			wantLines = append(wantLines, chatter)
+		}
+		want := strings.Join(wantLines, "\n")
 		var lines []string
 		model, lines = model.Trigger()
 		if strings.Join(lines, "\n") != want || model.phase != PhaseBoot {

@@ -192,6 +192,47 @@ func scrambleEffect(line string, st style) effect {
 	return fx
 }
 
+func glitchEffect(line string, st style) effect {
+	seed := paceFor("glitch", line).next()
+	var positions []int
+	for index, char := range []byte(line) {
+		if char != ' ' && char != '\t' {
+			positions = append(positions, index)
+		}
+	}
+	var fx effect
+	const steps = 7
+	for step := 0; step < steps; step++ {
+		resolved := step * len(positions) / steps
+		frame := []byte(line)
+		for index := resolved; index < len(positions); index++ {
+			at := positions[index]
+			pick := splitmix(seed^uint64(step)<<16^uint64(at)) % uint64(len(scrambleGlyphs))
+			frame[at] = scrambleGlyphs[pick]
+		}
+		fx.add(renderLine(string(frame), st), millis(26))
+	}
+	return fx
+}
+
+func waveformEffect(st style) effect {
+	var fx effect
+	for stage, delay := range []time.Duration{millis(90), millis(90), millis(100), millis(110)} {
+		pattern := waveformText(stage, st.unicode)
+		frame := join([]segment{{"  SIGNAL ", ansiDim}, {pattern, ansiBrightGreen}}, st.color)
+		fx.add(frame, delay)
+	}
+	return fx
+}
+
+func shouldGlitch(prev, line string) bool {
+	if line == "" || strings.HasPrefix(line, promptPrefix) || strings.HasPrefix(line, progressPrefix) || strings.HasPrefix(line, traceMapPrefix) || line == waveformLine {
+		return false
+	}
+	r := paceFor(prev, line)
+	return r.intn(37) == 0
+}
+
 // waitEffect fills a long wait with a spinner on the line about to print.
 func waitEffect(wait time.Duration, st style) effect {
 	var fx effect
@@ -224,6 +265,10 @@ func effectFor(prev, line string, st style) effect {
 		own = typingEffect(line, st, r)
 	case strings.HasPrefix(line, "+==[ "):
 		own = scrambleEffect(line, st)
+	case line == waveformLine:
+		own = waveformEffect(st)
+	case shouldGlitch(prev, line):
+		own = glitchEffect(line, st)
 	}
 	fx.frames = append(fx.frames, own.frames...)
 	fx.delays = append(fx.delays, own.delays...)
@@ -241,9 +286,6 @@ func linePause(line string) time.Duration {
 // renderLines writes new lines only. Effects redraw the current line with a
 // carriage return; earlier lines are never touched.
 func renderLines(output io.Writer, lines []string, st style) error {
-	if !st.color && !st.unicode && !st.motion {
-		return writeLines(output, lines)
-	}
 	var pending strings.Builder
 	flush := func() error {
 		if pending.Len() == 0 {
@@ -256,7 +298,20 @@ func renderLines(output io.Writer, lines []string, st style) error {
 	hidden := false
 	prev := ""
 	for _, line := range lines {
+		if strings.HasPrefix(line, traceMapPrefix) {
+			if err := flush(); err != nil {
+				return err
+			}
+			if err := renderTraceMap(output, line, st); err != nil {
+				return err
+			}
+			prev = line
+			continue
+		}
 		final := renderLine(line, st)
+		if st.bell && strings.HasPrefix(line, warnPrefix) {
+			pending.WriteByte('\a')
+		}
 		if !st.motion {
 			pending.WriteString(final + "\r\n")
 			continue
@@ -290,4 +345,36 @@ func renderLines(output io.Writer, lines []string, st style) error {
 		pending.WriteString(showCursor)
 	}
 	return flush()
+}
+
+func renderTraceMap(output io.Writer, directive string, st style) error {
+	hops := parseTraceMap(directive)
+	if len(hops) == 0 {
+		return nil
+	}
+	if !st.motion {
+		return writeLines(output, traceMapRows(hops, len(hops)))
+	}
+	first := true
+	for active := 1; active <= len(hops); active++ {
+		if !st.motion && active < len(hops) {
+			continue
+		}
+		rows := traceMapRows(hops, active)
+		if !first {
+			if _, err := fmt.Fprintf(output, "\x1b[%dA", len(rows)); err != nil {
+				return err
+			}
+		}
+		for _, row := range rows {
+			if _, err := fmt.Fprintf(output, "\r\x1b[2K%s\r\n", row); err != nil {
+				return err
+			}
+		}
+		first = false
+		if st.motion && active < len(hops) {
+			sleep(millis(125))
+		}
+	}
+	return nil
 }

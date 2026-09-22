@@ -1,6 +1,7 @@
 package nightshift
 
 import (
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -32,6 +33,33 @@ func TestParseArgsAcceptsFlagsAndClockSeed(t *testing.T) {
 	config, err = ParseArgs([]string{"--seed=42", "--seed=7"}, func(string) string { return "" })
 	if err != nil || config.Seed != 7 {
 		t.Fatalf("last seed = %#v %v", config, err)
+	}
+}
+
+func TestBellFlagAndHelpWorkWithoutATerminal(t *testing.T) {
+	config, err := ParseArgs([]string{"--bell"}, func(string) string { return "" })
+	if err != nil || !config.Bell {
+		t.Fatalf("bell flag = %#v %v", config, err)
+	}
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	err = Run([]string{"--help"}, reader, writer, writer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(output), "--bell") || !strings.Contains(string(output), "Usage:") {
+		t.Fatalf("help output omitted supported flags: %q", output)
 	}
 }
 
@@ -83,7 +111,7 @@ func TestParseArgsPresentationEnvironment(t *testing.T) {
 		}
 		return ""
 	})
-	if err != nil || !config.NoColor || !config.ASCII || !config.ReducedMotion || config.Seed != 3 {
+	if err != nil || !config.NoColor || !config.ASCII || !config.ReducedMotion || !config.DumbTerminal || config.Seed != 3 {
 		t.Fatalf("dumb = %#v %v", config, err)
 	}
 }

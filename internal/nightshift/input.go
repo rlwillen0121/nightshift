@@ -2,6 +2,7 @@ package nightshift
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"time"
 )
@@ -18,6 +19,9 @@ const (
 
 const escWait = 30 * time.Millisecond
 
+var errInputWaitTimeout = errors.New("input wait timed out")
+var errInputPollingUnavailable = errors.New("terminal polling unavailable")
+
 // deadlineReader is the raw terminal. Key bytes stay inside the reader.
 type deadlineReader interface {
 	Read(p []byte) (int, error)
@@ -26,10 +30,13 @@ type deadlineReader interface {
 
 type byteReader struct {
 	f       deadlineReader
+	wait    func(time.Duration) (bool, error)
 	buf     []byte
 	i       int
 	scratch []byte
 }
+
+func (r *byteReader) buffered() bool { return r.i < len(r.buf) }
 
 // nextKey classifies one event. The bytes are discarded and are not returned.
 func (r *byteReader) nextKey() (keyKind, error) {
@@ -181,7 +188,15 @@ func (r *byteReader) fill(wait time.Duration) error {
 		r.scratch = make([]byte, 256)
 	}
 	scratch := r.scratch[:256]
-	if wait > 0 {
+	if wait > 0 && r.wait != nil {
+		ready, err := r.wait(wait)
+		if err != nil {
+			return err
+		}
+		if !ready {
+			return errInputWaitTimeout
+		}
+	} else if wait > 0 {
 		if err := r.f.SetReadDeadline(time.Now().Add(wait)); err != nil {
 			return err
 		}

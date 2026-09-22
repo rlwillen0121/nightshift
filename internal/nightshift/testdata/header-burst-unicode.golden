@@ -21,6 +21,7 @@
 ╭─ 01 BOOT ATTESTATION ────────────────────────────────────────────────╮
 │     Verify toolchain, keys, and host integrity.                      │
 ╰──────────────────────────────────────────────────────────────────────╯
+THREATCON ▰▱▱▱▱ QUIET
 
  ❯ gpg --verify /opt/kits/ir-tools.tar.sig
      gpg: Signature made Tue 22 Sep 2026 00:28:21 UTC

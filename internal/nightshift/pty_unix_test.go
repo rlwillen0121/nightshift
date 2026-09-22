@@ -109,6 +109,53 @@ func TestPTYCtrlCIsSoleUserExitAndRestoresTerminal(t *testing.T) {
 	}
 }
 
+func TestPTYDashboardTicksWhileWaitingAndCtrlCExits(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	pty, tty := openPTY(t)
+	defer pty.Close()
+	defer tty.Close()
+	output := startDrain(pty)
+	stderr := tempFile(t)
+	done := make(chan error, 1)
+	go func() {
+		done <- Run([]string{"--seed", "42", "--ascii", "--no-color", "--reduced-motion"}, tty, tty, stderr)
+	}()
+	waitFor(t, output, "LIVE TELEMETRY")
+	waitFor(t, output, "\x1b[4A\r")
+	if _, err := pty.Write([]byte{0x03}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("ctrl+c did not exit after a telemetry tick")
+	}
+}
+
+func TestPTYEOFExitsRun(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	pty, tty := openPTY(t)
+	defer tty.Close()
+	output := startDrain(pty)
+	stderr := tempFile(t)
+	done := make(chan error, 1)
+	go func() {
+		done <- Run([]string{"--seed", "42", "--ascii", "--no-color", "--reduced-motion"}, tty, tty, stderr)
+	}()
+	waitFor(t, output, "LIVE TELEMETRY")
+	if err := pty.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Run remained blocked after terminal EOF")
+	}
+}
+
 func openPTY(t *testing.T) (*os.File, *os.File) {
 	t.Helper()
 	pty, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)

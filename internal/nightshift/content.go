@@ -54,10 +54,12 @@ var phaseCopies = [...]phaseCopy{
 
 const finaleBlackout = "BLACKOUT. the glass is dark. the seed remains."
 
+const waveformLine = "~ BEACON SPECTRUM"
+
 const (
 	screenWidth = 72
 	burstMin    = 4
-	burstMax    = 12
+	burstMax    = 13
 )
 
 const (
@@ -151,11 +153,16 @@ var bootLabels = [...]string{"kernel link", "entropy pool", "cipher suite", "gho
 
 func phaseBanner(phase Phase) []string {
 	copy := phaseCopies[phase]
-	return []string{
+	lines := []string{
 		borderTop(copy.Code + " " + copy.Name),
 		titleInner("  " + copy.Objective),
 		borderBottom(),
+		threatLine(phase),
 	}
+	if phase == PhaseSignal {
+		lines = append(lines, waveformLine)
+	}
+	return lines
 }
 
 func advanceLines(from, to Phase) []string {
@@ -168,18 +175,25 @@ func advanceLines(from, to Phase) []string {
 	return append(lines, phaseBanner(to)...)
 }
 
-func finaleLines() []string {
+func finaleLines(stats ...missionStats) []string {
 	last := phaseCopies[PhaseReport]
-	return []string{
+	lines := []string{
 		"",
 		fmt.Sprintf(okPrefix+"%s %s  %s", last.Code, last.Name, last.ReadyLabel),
 		"",
 		borderTop("MISSION COMPLETE"),
 		titleInner("  five phases closed. no external system was contacted."),
-		titleInner("  " + finaleBlackout),
 		borderBottom(),
-		"// ENTER restarts the same seeded mission. CTRL+C exits.",
 	}
+	if len(stats) > 0 {
+		lines = append(lines, debriefLines(stats[0])...)
+	}
+	lines = append(lines,
+		"",
+		titleInner("  "+finaleBlackout),
+		"// ENTER restarts the same seeded mission. CTRL+C exits.",
+	)
+	return lines
 }
 
 func restartLines(seed uint64) []string {

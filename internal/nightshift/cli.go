@@ -15,6 +15,9 @@ type Config struct {
 	ASCII         bool
 	NoColor       bool
 	ReducedMotion bool
+	Bell          bool
+	Help          bool
+	DumbTerminal  bool
 }
 
 // ExitError carries the process status for a sanitized CLI failure.
@@ -48,6 +51,10 @@ func ParseArgs(args []string, env func(string) string) (Config, error) {
 			config.NoColor = true
 		case arg == "--reduced-motion":
 			config.ReducedMotion = true
+		case arg == "--bell":
+			config.Bell = true
+		case arg == "--help" || arg == "-h":
+			config.Help = true
 		case arg == "--seed":
 			if index+1 >= len(args) {
 				return Config{}, fmt.Errorf("invalid argument: --seed requires an unsigned integer")
@@ -79,9 +86,22 @@ func ParseArgs(args []string, env func(string) string) (Config, error) {
 	if strings.EqualFold(env("TERM"), "dumb") {
 		config.ASCII = true
 		config.ReducedMotion = true
+		config.DumbTerminal = true
 	}
 	if !config.SeedProvided {
 		config.Seed = uint64(Now().UnixNano())
 	}
 	return config, nil
+}
+
+// Usage is the concise command-line help shown before terminal validation.
+func Usage() string {
+	return "NIGHTSHIFT — offline terminal simulation\n\n" +
+		"Usage: nightshift [--seed UINT64] [--ascii] [--no-color] [--reduced-motion] [--bell]\n\n" +
+		"  --seed UINT64      use a repeatable simulation seed\n" +
+		"  --ascii            use ASCII-only artwork\n" +
+		"  --no-color         disable ANSI color\n" +
+		"  --reduced-motion   print settled effects without animation\n" +
+		"  --bell             ring the terminal bell for [warn] lines\n" +
+		"  -h, --help         show this help\n"
 }

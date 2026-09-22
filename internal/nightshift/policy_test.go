@@ -27,6 +27,41 @@ func TestProductionSourcesPassPolicy(t *testing.T) {
 	}
 }
 
+func TestPolicyAllowsOnlyIsolatedUnixPollHelper(t *testing.T) {
+	dir := t.TempDir()
+	helperDir := filepath.Join(dir, "internal", "nightshift")
+	if err := os.MkdirAll(helperDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(helperDir, "input_poll_unix.go")
+	source := `package nightshift
+import "golang.org/x/sys/unix"
+func wait() { unix.Poll(nil, 0) }
+`
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if problems := auditFile(path); len(problems) != 0 {
+		t.Fatalf("isolated poll helper rejected: %v", problems)
+	}
+	if err := os.Rename(path, filepath.Join(helperDir, "runtime_unix.go")); err != nil {
+		t.Fatal(err)
+	}
+	if problems := auditFile(filepath.Join(helperDir, "runtime_unix.go")); len(problems) == 0 {
+		t.Fatal("unix import was allowed outside the isolated poll helper")
+	}
+	source = `package nightshift
+import "golang.org/x/sys/unix"
+func wait() { unix.IoctlGetInt(0, 0) }
+`
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if problems := auditFile(path); len(problems) == 0 {
+		t.Fatal("isolated helper was allowed to call a non-poll unix function")
+	}
+}
+
 func TestPolicyRejectsProhibitedSample(t *testing.T) {
 	dir := t.TempDir()
 	sample := `package sample
@@ -135,7 +170,7 @@ func auditFile(path string) []string {
 	}
 	for _, imported := range file.Imports {
 		importPath := strings.Trim(imported.Path.Value, `"`)
-		if forbiddenImport(importPath) {
+		if forbiddenImport(importPath) && !allowedPlatformImport(importPath, path) {
 			problems = append(problems, path+": prohibited import "+importPath)
 		}
 	}
@@ -150,6 +185,9 @@ func auditFile(path string) []string {
 			if ident, ok := fun.X.(*ast.Ident); ok && forbiddenSelector(ident.Name, name) {
 				problems = append(problems, path+": prohibited call "+ident.Name+"."+name)
 			}
+			if ident, ok := fun.X.(*ast.Ident); ok && ident.Name == "unix" && name != "Poll" {
+				problems = append(problems, path+": prohibited unix call "+name)
+			}
 			if ident, ok := fun.X.(*ast.Ident); ok && ident.Name == "os" && name == "Getenv" {
 				if !allowedEnvArg(call) {
 					problems = append(problems, path+": prohibited call os.Getenv")
@@ -163,6 +201,10 @@ func auditFile(path string) []string {
 		return true
 	})
 	return problems
+}
+
+func allowedPlatformImport(importPath, path string) bool {
+	return importPath == "golang.org/x/sys/unix" && strings.HasSuffix(filepath.ToSlash(path), "/internal/nightshift/input_poll_unix.go")
 }
 
 func forbiddenImport(path string) bool {

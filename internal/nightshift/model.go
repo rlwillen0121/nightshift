@@ -31,6 +31,9 @@ type Model struct {
 	lastHint     string
 	triggerCount uint64
 	tickCount    uint64
+	commandsRun  int
+	alertCount   int
+	hostsTouched []string
 	cosmetic     cosmetic
 	transcript   []string
 }
@@ -74,11 +77,16 @@ func (m Model) Transcript() string {
 // the phase or the transcript.
 func (m Model) Tick(now time.Time) Model {
 	m.tickCount++
-	m.elapsed = now.Sub(m.started)
-	if m.elapsed < 0 {
-		m.elapsed = 0
-	}
+	m.elapsed = m.elapsedAt(now)
 	return m
+}
+
+func (m Model) elapsedAt(now time.Time) time.Duration {
+	elapsed := now.Sub(m.started)
+	if elapsed < 0 {
+		return 0
+	}
+	return elapsed
 }
 
 func (m Model) Handle(kind keyKind) (Model, []string, bool) {
@@ -103,6 +111,12 @@ func (m Model) Enter() (Model, []string) {
 		m.finale = false
 		m.lastHint = ""
 		m.triggerCount = 0
+		m.tickCount = 0
+		m.commandsRun = 0
+		m.alertCount = 0
+		m.hostsTouched = nil
+		m.started = Now()
+		m.elapsed = 0
 		return m.appendLines(restartLines(m.config.Seed))
 	}
 	if !m.ready {
@@ -110,9 +124,10 @@ func (m Model) Enter() (Model, []string) {
 		return m.appendLines([]string{"// " + m.lastHint})
 	}
 	if m.phase == PhaseReport {
+		m.elapsed = m.elapsedAt(Now())
 		m.finale = true
 		m.lastHint = "MISSION COMPLETE // ENTER RESTARTS THE SEEDED SIMULATION"
-		return m.appendLines(finaleLines())
+		return m.appendLines(finaleLines(m.missionStats()))
 	}
 	from := m.phase
 	m.phase++
@@ -126,7 +141,23 @@ func (m Model) Trigger() (Model, []string) {
 		return m, nil
 	}
 	// A blank line sets each burst apart as its own block.
-	lines := append([]string{""}, burstLines(m.config.Seed, m.triggerCount, m.phase)...)
+	burst := burstLines(m.config.Seed, m.triggerCount, m.phase)
+	for _, line := range burst {
+		if strings.HasPrefix(line, promptPrefix) {
+			m.commandsRun++
+		}
+		if strings.HasPrefix(line, warnPrefix) {
+			m.alertCount++
+		}
+	}
+	host := burstTarget(m.config.Seed, m.triggerCount, m.phase).tag
+	if !containsString(m.hostsTouched, host) {
+		m.hostsTouched = append(m.hostsTouched, host)
+	}
+	if chatter := radioChatter(m.config.Seed, m.triggerCount, m.phase); chatter != "" {
+		burst = append(burst, chatter)
+	}
+	lines := append([]string{""}, burst...)
 	m.triggerCount++
 	m.ready = true
 	m.lastHint = ""

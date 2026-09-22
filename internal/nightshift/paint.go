@@ -49,6 +49,7 @@ type style struct {
 	color    bool
 	unicode  bool
 	motion   bool
+	bell     bool
 	callsign string
 }
 
@@ -57,6 +58,7 @@ func styleFor(config Config, callsign string) style {
 		color:    !config.NoColor,
 		unicode:  !config.ASCII,
 		motion:   !config.ReducedMotion,
+		bell:     config.Bell,
 		callsign: strings.ToLower(callsign),
 	}
 }
@@ -107,6 +109,12 @@ func segmentsFor(line string, st style) []segment {
 		return statusSegments(line, okPrefix, "[ok]", "✓", ansiBrightGreen, uni)
 	case strings.HasPrefix(line, warnPrefix):
 		return statusSegments(line, warnPrefix, "[warn]", "▲", ansiYellow, uni)
+	case strings.HasPrefix(line, radioPrefix):
+		return []segment{{radioPrefix, ansiLabel}, {line[len(radioPrefix):], ansiDim}}
+	case strings.HasPrefix(line, "THREATCON "):
+		return threatSegments(line, uni)
+	case line == waveformLine:
+		return []segment{{"  SIGNAL ", ansiDim}, {waveformText(3, uni), ansiBrightGreen}}
 	case strings.HasPrefix(line, progressPrefix):
 		return progressSegments(line, uni)
 	case strings.HasPrefix(line, "// "):
@@ -118,6 +126,28 @@ func segmentsFor(line string, st style) []segment {
 	default:
 		return []segment{{line, ""}}
 	}
+}
+
+func threatSegments(line string, uni bool) []segment {
+	body := strings.TrimPrefix(line, "THREATCON ")
+	space := strings.IndexByte(body, ' ')
+	if space < 0 {
+		return []segment{{line, ansiYellow}}
+	}
+	bar, level := body[:space], body[space+1:]
+	if uni {
+		bar = strings.NewReplacer("#", "▰", "-", "▱").Replace(bar)
+	}
+	indicator := ansiGood
+	switch level {
+	case "ELEVATED":
+		indicator = ansiYellow
+	case "HIGH":
+		indicator = ansiAmber
+	case "CRITICAL":
+		indicator = ansiAlert
+	}
+	return []segment{{"THREATCON ", ansiDim}, {bar, indicator}, {" " + level, indicator}}
 }
 
 func borderTopSegments(line string, uni bool) []segment {
