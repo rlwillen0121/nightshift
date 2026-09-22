@@ -2,6 +2,10 @@
 
 Offline tactical-operations console. It is a local terminal simulation: five scripted phases, no network, no mission file, and no effect on a real system.
 
+<p align="center">
+  <img src="docs/nightshift-demo.gif" alt="NIGHTSHIFT terminal demo showing live telemetry, a signal capture, and an animated global traceroute" width="1200">
+</p>
+
 Released under the [MIT License](LICENSE).
 
 The mission story is an append-only transcript, with a short header printed once and completed output left in terminal scrollback. While active, the telemetry panel and traceroute map redraw only their own fixed-width rows in place; the alternate screen is not used and older story lines are not repainted.
