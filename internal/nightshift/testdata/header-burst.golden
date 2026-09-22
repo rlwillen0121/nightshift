@@ -1,0 +1,27 @@
++==[ NIGHTSHIFT ]======================================================+
+|==                                                                  ==|
+|==   #   # #####  #### #   # ##### ##### #   # ##### ##### #####    ==|
+|==   ##  #   #   #     #   #   #   #     #   #   #   #       #      ==|
+|==   # # #   #   # ### #####   #   ##### #####   #   ####    #      ==|
+|==   #  ##   #   #   # #   #   #       # #   #   #   #       #      ==|
+|==   #   # #####  #### #   #   #   ##### #   # ##### #       #      ==|
+|==   ===========================================================    ==|
+|==                                                                  ==|
+|==           SEED 000000000000002A    CALLSIGN MOTHLIGHT            ==|
+|==                                                                  ==|
++======================================================================+
+// a key appends one burst. enter hints, then advances. ctrl+c exits.
+
++==[ 01 BOOT ATTESTATION ]=============================================+
+|==   Local envelope check.                                          ==|
++======================================================================+
+K.I.K.I. // The line went green. Leave it.
+nightshift> seal --local
+[ok] lantern-row.invalid warm
+  host: lantern-row.invalid
+  addr: 192.0.2.10
+[warn] lantern-row.invalid stays on the card
+// lantern-row.invalid noted on the glass
+  lantern  [###-----]
+K.I.K.I. // Not a way out.
+K.I.K.I. // Quiet means the slate is quiet.
