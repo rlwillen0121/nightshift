@@ -57,6 +57,14 @@ func TestTracerouteBuildsDeterministicMapAndLatencyLegs(t *testing.T) {
 	if !strings.Contains(rows, "SIMULATED ROUTE") || !strings.Contains(rows, hops[0].city) || !strings.Contains(rows, "LEG ") {
 		t.Fatalf("route map omitted its map, city, or live leg: %q", rows)
 	}
+	if strings.Contains(rows, "*LHR") || !strings.Contains(rows, "ROUTE  1 "+hops[0].city) {
+		t.Fatalf("route map should use numbered pins and a separate legend: %q", rows)
+	}
+	for _, row := range traceMapRows(hops, len(hops)) {
+		if len(row) > screenWidth {
+			t.Fatalf("route map row exceeds %d columns: %q", screenWidth, row)
+		}
+	}
 	var output bytes.Buffer
 	if err := renderLines(&output, []string{directive}, style{motion: false}); err != nil {
 		t.Fatal(err)
@@ -71,8 +79,26 @@ func TestTracerouteBuildsDeterministicMapAndLatencyLegs(t *testing.T) {
 	if err := renderLines(&output, []string{directive}, style{motion: true}); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Count(output.String(), "\x1b[12A"); got != len(hops)-1 {
+	repaint := fmt.Sprintf("\x1b[%dA", len(traceMapRows(hops, len(hops))))
+	if got := strings.Count(output.String(), repaint); got != len(hops)-1 {
 		t.Fatalf("route map advanced %d times for %d hops", got, len(hops))
+	}
+}
+
+func TestTraceMapRevealsNumberedPinsWithoutOverlayingCityNames(t *testing.T) {
+	hops := []traceHop{{city: "JFK", latencyMs: 25}, {city: "LHR", latencyMs: 110}, {city: "FRA", latencyMs: 42}}
+	first := strings.Join(traceMapRows(hops, 1), "\n")
+	final := strings.Join(traceMapRows(hops, len(hops)), "\n")
+	if strings.Contains(first, "2 LHR") || !strings.Contains(first, "ROUTE  1 JFK") {
+		t.Fatalf("first frame revealed future hops: %q", first)
+	}
+	if !strings.Contains(final, "ROUTE  1 JFK  >  2 LHR  >  3 FRA") {
+		t.Fatalf("final route legend is unclear: %q", final)
+	}
+	for _, city := range []string{"*JFK", "*LHR", "*FRA"} {
+		if strings.Contains(final, city) {
+			t.Fatalf("city label %q still overlays the map: %q", city, final)
+		}
 	}
 }
 

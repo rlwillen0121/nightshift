@@ -152,9 +152,9 @@ type mapPoint struct {
 }
 
 var traceCityPoints = map[string]mapPoint{
-	"IAD": {2, 2}, "JFK": {9, 3}, "SFO": {2, 6}, "SEA": {8, 5},
-	"LHR": {24, 2}, "AMS": {29, 3}, "FRA": {33, 4}, "DXB": {40, 5},
-	"HKG": {50, 4}, "SIN": {47, 7}, "NRT": {57, 3},
+	"SFO": {4, 3}, "SEA": {6, 1}, "IAD": {11, 2}, "JFK": {14, 3},
+	"LHR": {23, 2}, "AMS": {25, 1}, "FRA": {29, 3}, "DXB": {38, 3},
+	"HKG": {49, 3}, "SIN": {48, 5}, "NRT": {57, 2},
 }
 
 func knownTraceCity(city string) bool {
@@ -176,15 +176,9 @@ func traceMapRows(hops []traceHop, active int) []string {
 		from, to := traceCityPoints[hops[hop-1].city], traceCityPoints[hops[hop].city]
 		drawMapLeg(grid, from, to)
 	}
-	for index, hop := range hops {
+	for index, hop := range hops[:active] {
 		point := traceCityPoints[hop.city]
-		label := hop.city
-		if index < active {
-			label = "*" + label
-		} else {
-			label = " " + label
-		}
-		putMapText(grid, point.x, point.y, label)
+		grid[point.y][point.x] = rune('1' + index)
 	}
 	rows := []string{
 		borderTop("SIMULATED ROUTE / " + fmt.Sprintf("HOP %02d OF %02d", active, len(hops))),
@@ -193,6 +187,7 @@ func traceMapRows(hops []traceHop, active int) []string {
 	for _, row := range grid {
 		rows = append(rows, "  "+strings.TrimRight(string(row), " "))
 	}
+	rows = append(rows, traceRouteLegend(hops, active))
 	if active == 1 {
 		rows = append(rows, fmt.Sprintf("  LEG 01/%02d  LOCAL -> %-3s   %6.3f ms", len(hops), hops[0].city, float64(hops[0].latencyMs)))
 	} else {
@@ -203,33 +198,48 @@ func traceMapRows(hops []traceHop, active int) []string {
 	return rows
 }
 
+func traceRouteLegend(hops []traceHop, active int) string {
+	parts := make([]string, 0, active)
+	for index, hop := range hops[:active] {
+		parts = append(parts, fmt.Sprintf("%d %s", index+1, hop.city))
+	}
+	return "  ROUTE  " + strings.Join(parts, "  >  ")
+}
+
 func drawWorldOutline(grid [][]rune) {
 	for _, outline := range []struct {
 		x, y int
 		text string
 	}{
-		{1, 0, "   .---."},
-		{0, 1, " .'     `-."},
-		{0, 2, "/         `-.."},
-		{1, 3, "|             `-."},
-		{2, 4, "\\                )"},
-		{3, 5, "`----.    __..--'"},
-		{5, 6, "`------'"},
-		{21, 0, ".--.             .------------------------."},
-		{19, 1, "/    `-.        /                          `-.."},
-		{18, 2, "|       `------'                              `."},
-		{19, 3, "\\                                            /"},
-		{22, 4, "`-.      ______________               ____.'"},
-		{26, 5, "`------'              `-------------'"},
-		{32, 6, "  .--.       .---."},
-		{36, 7, "`-'         `---'"},
+		{2, 0, ".----------."},
+		{1, 1, "/            \\"},
+		{0, 2, "|              |"},
+		{0, 3, "|              |"},
+		{1, 4, "\\            /"},
+		{2, 5, "`----.-----'"},
+		{7, 6, "`"},
+		{20, 0, ".------."},
+		{19, 1, "/        \\"},
+		{18, 2, "|          |"},
+		{18, 3, "|          |"},
+		{19, 4, "\\        /"},
+		{20, 5, "`--.---'"},
+		{23, 6, "`"},
+		{35, 0, ".--------------------------."},
+		{34, 1, "/                            \\"},
+		{33, 2, "|                              |"},
+		{33, 3, "|                              |"},
+		{34, 4, "\\                            /"},
+		{35, 5, "`-----.              .-----'"},
+		{41, 6, "`------------'"},
+		{46, 7, ".----."},
 	} {
 		putMapText(grid, outline.x, outline.y, outline.text)
 	}
 }
 
 func drawMapLeg(grid [][]rune, from, to mapPoint) {
-	x0, y0, x1, y1 := from.x+2, from.y, to.x, to.y
+	x0, y0, x1, y1 := from.x, from.y, to.x, to.y
 	dx, dy := absInt(x1-x0), -absInt(y1-y0)
 	sx, sy := -1, -1
 	if x0 < x1 {
@@ -240,7 +250,7 @@ func drawMapLeg(grid [][]rune, from, to mapPoint) {
 	}
 	err := dx + dy
 	for {
-		if y0 >= 0 && y0 < len(grid) && x0 >= 0 && x0 < len(grid[y0]) {
+		if y0 >= 0 && y0 < len(grid) && x0 >= 0 && x0 < len(grid[y0]) && grid[y0][x0] == ' ' {
 			grid[y0][x0] = '.'
 		}
 		if x0 == x1 && y0 == y1 {
