@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"local/nightshift/internal/nightshift"
+	"github.com/rlwillen0121/nightshift/internal/nightshift"
 )
 
 func main() {

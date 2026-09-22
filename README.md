@@ -2,9 +2,16 @@
 
 Offline tactical-operations console. It is a local terminal simulation: five scripted phases, no network, no mission file, and no effect on a real system.
 
+Released under the [MIT License](LICENSE).
+
 The mission story is an append-only transcript, with a short header printed once and completed output left in terminal scrollback. While active, the telemetry panel and traceroute map redraw only their own fixed-width rows in place; the alternate screen is not used and older story lines are not repainted.
 
 ```sh
+# Install the command.
+go install github.com/rlwillen0121/nightshift/cmd/nightshift@latest
+nightshift
+
+# Or run it from a checkout.
 go run ./cmd/nightshift
 go run ./cmd/nightshift --seed 42 --ascii --no-color --reduced-motion
 go run ./cmd/nightshift --help
