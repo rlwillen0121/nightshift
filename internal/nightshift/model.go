@@ -48,7 +48,8 @@ func NewModel(config Config) Model {
 		started:  Now(),
 		cosmetic: cosmeticFor(config.Seed),
 	}
-	model.transcript = append(headerLines(model.config.Seed, model.cosmetic.Callsign), phaseBanner(PhaseBoot)...)
+	model.transcript = append(headerLines(model.config.Seed, model.cosmetic.Callsign), bootLines()...)
+	model.transcript = append(model.transcript, phaseBanner(PhaseBoot)...)
 	return model
 }
 
@@ -124,7 +125,8 @@ func (m Model) Trigger() (Model, []string) {
 	if m.finale {
 		return m, nil
 	}
-	lines := burstLines(m.config.Seed, m.triggerCount)
+	// A blank line sets each burst apart as its own block.
+	lines := append([]string{""}, burstLines(m.config.Seed, m.triggerCount, m.phase)...)
 	m.triggerCount++
 	m.ready = true
 	m.lastHint = ""

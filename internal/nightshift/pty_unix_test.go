@@ -39,14 +39,14 @@ func TestPTYCtrlCIsSoleUserExitAndRestoresTerminal(t *testing.T) {
 	stderr := tempFile(t)
 	done := make(chan error, 1)
 	go func() {
-		done <- Run([]string{"--seed", "42", "--no-color", "--reduced-motion"}, tty, tty, stderr)
+		done <- Run([]string{"--seed", "42", "--ascii", "--no-color", "--reduced-motion"}, tty, tty, stderr)
 	}()
 
 	waitFor(t, output, "NIGHTSHIFT")
 	if _, err := pty.Write([]byte{'q', 0x1b, '\r'}); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, output, burstLines(42, 0)[0])
+	waitFor(t, output, burstLines(42, 0, PhaseBoot)[0])
 	select {
 	case err := <-done:
 		t.Fatalf("non-ctrl+c input exited: %v", err)

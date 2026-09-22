@@ -67,7 +67,7 @@ func TestTriggersAppendBurstsWithoutRetainingInput(t *testing.T) {
 		if quit || !model.ready || model.phase != PhaseBoot || model.triggerCount != uint64(triggers) {
 			t.Fatalf("burst %d quit %v ready %v phase %d count %d", triggers, quit, model.ready, model.phase, model.triggerCount)
 		}
-		if len(lines) < burstMin || len(lines) > burstMax {
+		if !validBurst(lines) {
 			t.Fatalf("burst %d lines %d", triggers, len(lines))
 		}
 		if len(model.transcript) != before+len(lines) || strings.Join(model.transcript[before:], "\n") != strings.Join(lines, "\n") {
@@ -125,7 +125,7 @@ func TestEarlyEnterHintsAndReadyAdvancesEveryPhase(t *testing.T) {
 	hinted := NewModel(Config{Seed: 42, SeedProvided: true})
 	hinted, _ = hinted.Enter()
 	hinted, lines = hinted.Trigger()
-	if strings.Join(lines, "\n") != strings.Join(burstLines(42, 0), "\n") {
+	if !validBurst(lines) || strings.Join(lines[1:], "\n") != strings.Join(burstLines(42, 0, PhaseBoot), "\n") {
 		t.Fatal("hint consumed a trigger")
 	}
 
@@ -143,7 +143,7 @@ func TestEarlyEnterHintsAndReadyAdvancesEveryPhase(t *testing.T) {
 			t.Fatalf("advance = %#v", model)
 		}
 		banner := strings.Join(advanced, "\n")
-		if !strings.Contains(banner, phaseCopies[phase+1].Name) || !strings.Contains(banner, commentary(phase+1)) {
+		if !strings.Contains(banner, phaseCopies[phase+1].Name) || strings.Contains(banner, "K.I.K.I") {
 			t.Fatalf("banner = %s", banner)
 		}
 	}
@@ -254,7 +254,7 @@ func TestIgnoredControlsAndPastedInterruptDoNotQuit(t *testing.T) {
 		}
 	}
 	pasted, lines, quit := model.Handle(kinds[0])
-	if quit || pasted.triggerCount != 1 || len(lines) < burstMin || len(lines) > burstMax {
+	if quit || pasted.triggerCount != 1 || !validBurst(lines) {
 		t.Fatal("paste trigger did not append a burst")
 	}
 	if len(pasted.transcript) != len(model.transcript)+len(lines) || strings.Join(pasted.transcript[len(model.transcript):], "\n") != strings.Join(lines, "\n") {
@@ -318,38 +318,29 @@ func TestSeededCosmeticsAreDeterministic(t *testing.T) {
 	if !different {
 		t.Fatal("cosmetics did not vary")
 	}
-	seen := map[string]Phase{}
-	for phase := PhaseBoot; phase <= PhaseReport; phase++ {
-		line := commentary(phase)
-		if line == "" {
-			t.Fatalf("empty commentary for phase %d", phase)
-		}
-		if previous, ok := seen[line]; ok {
-			t.Fatalf("phase %d reused commentary from %d", phase, previous)
-		}
-		seen[line] = phase
-	}
-	earlyLeft := NewModel(Config{Seed: 42, SeedProvided: true})
-	earlyRight := NewModel(Config{Seed: 42, SeedProvided: true})
-	leftKiki := renderedKiki(earlyLeft.Transcript())
-	rightKiki := renderedKiki(earlyRight.Transcript())
-	if len(leftKiki) == 0 || strings.Join(leftKiki, "\n") != strings.Join(rightKiki, "\n") || !strings.Contains(strings.Join(leftKiki, "\n"), commentary(PhaseBoot)) {
-		t.Fatalf("same seed K.I.K.I. before ready = %q", leftKiki)
-	}
-	readyKiki := renderedKiki(left.Transcript())
-	if strings.Join(readyKiki, "\n") != strings.Join(renderedKiki(right.Transcript()), "\n") || !strings.Contains(strings.Join(readyKiki, "\n"), commentary(PhaseCorrelation)) {
-		t.Fatalf("same seed K.I.K.I. diverged: %q", readyKiki)
-	}
 }
 
-func renderedKiki(view string) []string {
-	var lines []string
-	for _, line := range strings.Split(view, "\n") {
-		if strings.Contains(line, "K.I.K.I. // ") {
-			lines = append(lines, line)
+// validBurst reports whether appended lines are one blank separator and a burst.
+func validBurst(lines []string) bool {
+	return len(lines) > 0 && lines[0] == "" && len(lines)-1 >= burstMin && len(lines)-1 <= burstMax
+}
+
+func TestFullRunHasNoCommentator(t *testing.T) {
+	model := NewModel(Config{Seed: 42, SeedProvided: true})
+	for round := 0; round < 2; round++ {
+		for phase := PhaseBoot; phase <= PhaseReport; phase++ {
+			model, _ = model.Trigger()
+			model, _ = model.Trigger()
+			model, _ = model.Enter()
 		}
+		if !model.finale {
+			t.Fatal("run did not reach the finale")
+		}
+		model, _ = model.Enter()
 	}
-	return lines
+	if strings.Contains(model.Transcript(), "K.I.K.I") || strings.Contains(strings.ToLower(model.Transcript()), "kiki") {
+		t.Fatal("commentator line returned")
+	}
 }
 
 func TestTranscriptStaysAppendOnly(t *testing.T) {
@@ -392,12 +383,13 @@ func TestTranscriptStaysAppendOnly(t *testing.T) {
 	if strings.Contains(buf.String(), "\x1b") {
 		t.Fatal("writer emitted a cursor sequence")
 	}
-	kiki := paintLine("K.I.K.I. // still on the glass")
-	prompt := paintLine("nightshift> attest --local")
-	if !strings.Contains(kiki, "\x1b[1;35m") || !strings.Contains(kiki, "K.I.K.I.") || !strings.Contains(prompt, "\x1b[32m") || !strings.Contains(prompt, "nightshift>") {
-		t.Fatal("color painter missed K.I.K.I. or the prompt")
+	color := style{color: true}
+	prompt := renderLine("nightshift> attest --local", color)
+	ok := renderLine(okPrefix+"ember.invalid  parked", color)
+	if !strings.Contains(prompt, ansiPrompt+"nightshift>") || !strings.Contains(ok, ansiBrightGreen+"[ok]") {
+		t.Fatal("color painter missed the prompt or the ok tag")
 	}
-	if strings.Contains(paintLine(""), "\x1b") {
+	if strings.Contains(renderLine("", style{color: true, unicode: true}), "\x1b") {
 		t.Fatal("empty line was painted")
 	}
 	if strings.ReplaceAll(buf.String(), "\r\n", "\n") != fresh.Transcript()+"\n" {
@@ -405,113 +397,99 @@ func TestTranscriptStaysAppendOnly(t *testing.T) {
 	}
 }
 
-func TestBurstSelectionIsSeedAndCount(t *testing.T) {
-	if len(corpus) < 80 {
-		t.Fatalf("corpus has %d lines", len(corpus))
-	}
-	seen := map[string]struct{}{}
-	shapes := map[string]int{}
-	for _, line := range corpus {
-		if line == "" {
-			t.Fatal("empty corpus line")
-		}
-		if _, ok := seen[line]; ok {
-			t.Fatalf("duplicate corpus line %q", line)
-		}
-		seen[line] = struct{}{}
-		for _, r := range line {
-			if r > 127 || r == '·' {
-				t.Fatalf("non-ascii corpus line %q", line)
+// sampleBursts is every phase's bursts for a spread of seeds.
+func sampleBursts() [][]string {
+	var out [][]string
+	for _, seed := range []uint64{0, 1, 42, 99, 1 << 32, 0xdeadbeef} {
+		for phase := PhaseBoot; phase <= PhaseReport; phase++ {
+			for index := uint64(0); index < 12; index++ {
+				out = append(out, burstLines(seed, index, phase))
 			}
 		}
-		switch {
-		case strings.HasPrefix(line, "nightshift>"):
-			shapes["prompt"]++
-		case strings.HasPrefix(line, "[ok]"):
-			shapes["ok"]++
-		case strings.HasPrefix(line, "[warn]"):
-			shapes["warn"]++
-		case strings.HasPrefix(line, "// "):
-			shapes["comment"]++
-		case strings.HasPrefix(line, "K.I.K.I. // "):
-			shapes["kiki"]++
-		case strings.HasPrefix(line, "  "):
-			shapes["field"]++
-		case strings.HasPrefix(strings.TrimSpace(line), "+--["):
-			shapes["box"]++
-		default:
-			t.Fatalf("unexpected shape %q", line)
+	}
+	return out
+}
+
+func TestBurstSelectionIsSeedAndCount(t *testing.T) {
+	for _, lines := range sampleBursts() {
+		if len(lines) < burstMin || len(lines) > burstMax {
+			t.Fatalf("burst length %d: %q", len(lines), lines)
 		}
-	}
-	if len(seen) != len(corpus) {
-		t.Fatal("distinct count drifted")
-	}
-	for _, name := range []string{"prompt", "ok", "comment", "kiki", "field"} {
-		if shapes[name] < 8 {
-			t.Fatalf("shape %s has %d lines", name, shapes[name])
+		if !strings.HasPrefix(lines[0], promptPrefix) {
+			t.Fatalf("burst does not open with a prompt: %q", lines[0])
+		}
+		for _, line := range lines {
+			if line == "" || len(line) > screenWidth || strings.HasSuffix(line, " ") {
+				t.Fatalf("burst line shape %q", line)
+			}
+			for _, r := range line {
+				if r > 127 {
+					t.Fatalf("non-ascii burst line %q", line)
+				}
+			}
+			known := false
+			for _, prefix := range []string{promptPrefix, okPrefix, warnPrefix, progressPrefix, fieldIndent} {
+				known = known || strings.HasPrefix(line, prefix)
+			}
+			if !known {
+				t.Fatalf("unexpected shape %q", line)
+			}
 		}
 	}
 	for _, seed := range []uint64{0, 1, 42, 99, 1 << 32} {
-		previous := ""
-		for index := uint64(0); index < 24; index++ {
-			lines := burstLines(seed, index)
-			if len(lines) < burstMin || len(lines) > burstMax {
-				t.Fatalf("seed %d index %d length %d", seed, index, len(lines))
-			}
-			got := strings.Join(lines, "\n")
-			if got == previous {
-				t.Fatalf("seed %d repeated burst at %d", seed, index)
-			}
-			if strings.Join(burstLines(seed, index), "\n") != got {
-				t.Fatal("burst selection was not stable")
-			}
-			found := map[string]bool{}
-			for _, line := range lines {
-				switch {
-				case strings.HasPrefix(line, "nightshift>"):
-					found["prompt"] = true
-				case strings.HasPrefix(line, "[ok]"):
-					found["ok"] = true
-				case strings.HasPrefix(line, "// "):
-					found["comment"] = true
-				case strings.HasPrefix(line, "K.I.K.I. // "):
-					found["kiki"] = true
+		for phase := PhaseBoot; phase <= PhaseReport; phase++ {
+			commands := map[string]bool{}
+			previous := ""
+			for index := uint64(0); index < 8; index++ {
+				lines := burstLines(seed, index, phase)
+				got := strings.Join(lines, "\n")
+				if got != strings.Join(burstLines(seed, index, phase), "\n") {
+					t.Fatal("burst selection was not stable")
 				}
+				verb := strings.Fields(strings.TrimPrefix(lines[0], promptPrefix))[0]
+				if verb == previous {
+					t.Fatalf("seed %d phase %d repeated %s at %d", seed, phase, verb, index)
+				}
+				previous = verb
+				commands[verb] = true
 			}
-			if len(found) != 4 {
-				t.Fatalf("seed %d index %d shapes %#v", seed, index, found)
+			if len(commands) < 3 {
+				t.Fatalf("seed %d phase %d has little variety: %v", seed, phase, commands)
 			}
-			previous = got
 		}
 	}
 	model := NewModel(Config{Seed: 42, SeedProvided: true})
 	for index := uint64(0); index < 6; index++ {
-		want := strings.Join(burstLines(42, index), "\n")
+		want := strings.Join(append([]string{""}, burstLines(42, index, PhaseBoot)...), "\n")
 		var lines []string
 		model, lines = model.Trigger()
 		if strings.Join(lines, "\n") != want || model.phase != PhaseBoot {
-			t.Fatalf("trigger %d did not follow seed and count", index)
+			t.Fatalf("trigger %d did not follow seed, count, and phase", index)
 		}
 	}
-	other := NewModel(Config{Seed: 99, SeedProvided: true})
-	_, otherLines := other.Trigger()
-	if strings.Join(otherLines, "\n") == strings.Join(burstLines(42, 0), "\n") {
+	if strings.Join(burstLines(99, 0, PhaseBoot), "\n") == strings.Join(burstLines(42, 0, PhaseBoot), "\n") {
 		t.Fatal("different seeds printed the same first burst")
 	}
 }
 
 func TestAuthoredTextStaysFictional(t *testing.T) {
 	var blob strings.Builder
-	for _, line := range corpus {
-		blob.WriteString(line)
-		blob.WriteByte('\n')
+	for _, lines := range sampleBursts() {
+		for _, line := range lines {
+			// A dump row's gutter is raw bytes, not prose; it can look dotted.
+			if strings.HasPrefix(line, fieldIndent+"0x") {
+				continue
+			}
+			blob.WriteString(line)
+			blob.WriteByte('\n')
+		}
 	}
 	for _, copy := range phaseCopies {
 		fmt.Fprintf(&blob, "%s\n%s\n%s\n%s\n", copy.Name, copy.Code, copy.Objective, copy.Hint)
 	}
 	blob.WriteString(finaleBlackout)
 	blob.WriteByte('\n')
-	for _, line := range append(append(headerLines(42, "MOTHLIGHT"), finaleLines()...), restartLines(42)...) {
+	for _, line := range append(append(append(headerLines(42, "MOTHLIGHT"), bootLines()...), finaleLines()...), restartLines(42)...) {
 		blob.WriteString(line)
 		blob.WriteByte('\n')
 	}
@@ -521,26 +499,45 @@ func TestAuthoredTextStaysFictional(t *testing.T) {
 			t.Fatalf("banned text %s", banned)
 		}
 	}
-	hosts := 0
+	hosts, addresses := 0, 0
 	for _, field := range strings.FieldsFunc(text, func(r rune) bool {
-		return r == ' ' || r == '\n' || r == '\t' || r == ',' || r == ';'
+		return r == ' ' || r == '\n' || r == '\t' || r == ',' || r == ';' || r == '(' || r == ')' || r == '|' || r == '"'
 	}) {
-		token := strings.Trim(field, ".,")
-		ip := net.ParseIP(token)
-		if ip4 := ip.To4(); ip4 != nil {
-			if !documentationIPv4(ip4) {
-				t.Fatalf("address outside documentation ranges: %s", token)
+		token := strings.Trim(field, ".,:'")
+		// Paths may hold dotted file names; an address may carry a prefix or port.
+		if strings.Contains(token, "/") {
+			token = strings.SplitN(token, "/", 2)[0]
+			if token == "" {
+				continue
 			}
+		}
+		if host, _, ok := strings.Cut(token, ":"); ok && strings.Count(host, ".") == 3 {
+			token = host
+		}
+		if strings.Contains(token, "=") {
+			token = token[strings.LastIndex(token, "=")+1:]
+		}
+		if ip := net.ParseIP(token); ip != nil {
+			if ip4 := ip.To4(); ip4 != nil {
+				if !documentationIPv4(ip4) {
+					t.Fatalf("address outside documentation ranges: %s", token)
+				}
+			} else if !strings.HasPrefix(token, "2001:db8:") {
+				t.Fatalf("ipv6 outside documentation range: %s", token)
+			}
+			addresses++
 			continue
 		}
-		if strings.Contains(token, ".") && strings.ContainsAny(token, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz") {
+		labels := strings.Split(token, ".")
+		last := labels[len(labels)-1]
+		if len(labels) > 1 && len(last) >= 2 && strings.Trim(last, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") == "" {
 			hosts++
-			if token != "K.I.K.I" && !strings.HasSuffix(token, ".invalid") {
+			if last != "invalid" {
 				t.Fatalf("host %s", token)
 			}
 		}
 	}
-	if hosts == 0 || !strings.Contains(text, "192.0.2.") || !strings.Contains(text, "198.51.100.") || !strings.Contains(text, "203.0.113.") {
+	if hosts == 0 || addresses == 0 || !strings.Contains(text, "192.0.2.") || !strings.Contains(text, "198.51.100.") || !strings.Contains(text, "203.0.113.") {
 		t.Fatal("expected fictional hosts and documentation addresses")
 	}
 }

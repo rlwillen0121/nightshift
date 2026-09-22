@@ -79,7 +79,7 @@ func TestKeyClassificationDoesNotRetainBytes(t *testing.T) {
 	secret := "SUPERSECRETINPUT"
 	model := NewModel(Config{Seed: 3, SeedProvided: true})
 	model, lines, quit := model.Handle(keyTrigger)
-	if quit || len(lines) < burstMin {
+	if quit || !validBurst(lines) {
 		t.Fatal("paste trigger did not append a burst")
 	}
 	if strings.Contains(fmt.Sprintf("%#v\n%s", model, model.Transcript()), secret) {

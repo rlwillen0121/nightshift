@@ -33,7 +33,7 @@ func Run(args []string, input, output, errorOutput *os.File) error {
 		return fmt.Errorf("terminal session unavailable")
 	}
 	defer func() {
-		_, _ = io.WriteString(output, "\x1b[?2004l")
+		_, _ = io.WriteString(output, showCursor+"\x1b[?2004l")
 		_ = term.Restore(fd, state)
 	}()
 	if _, err = io.WriteString(output, "\x1b[?2004h"); err != nil {
@@ -41,8 +41,9 @@ func Run(args []string, input, output, errorOutput *os.File) error {
 	}
 
 	model := NewModel(config)
-	// Color is paint-at-write. NoColor stores and prints the same plain lines.
-	if err = renderLines(output, model.transcript, !config.NoColor); err != nil {
+	st := styleFor(model.config, model.cosmetic.Callsign)
+	// Glyphs, color, and motion are applied at write time; stored lines stay ASCII.
+	if err = renderLines(output, model.transcript, st); err != nil {
 		return fmt.Errorf("terminal session unavailable")
 	}
 	reader := &byteReader{f: input}
@@ -60,7 +61,7 @@ func Run(args []string, input, output, errorOutput *os.File) error {
 		if quit {
 			return nil
 		}
-		if err = renderLines(output, lines, !config.NoColor); err != nil {
+		if err = renderLines(output, lines, st); err != nil {
 			return fmt.Errorf("terminal session unavailable")
 		}
 	}

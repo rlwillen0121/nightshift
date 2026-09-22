@@ -12,16 +12,18 @@
 +======================================================================+
 // a key appends one burst. enter hints, then advances. ctrl+c exits.
 
+[>>]   kernel link   [####################] 100%
+[>>]   entropy pool  [####################] 100%
+[>>]   cipher suite  [####################] 100%
+[>>]   ghost relay   [####################] 100%
+// uplink armed. nothing leaves this terminal.
+
 +==[ 01 BOOT ATTESTATION ]=============================================+
-|==   Local envelope check.                                          ==|
+|==   Verify toolchain, keys, and host integrity.                    ==|
 +======================================================================+
-K.I.K.I. // The line went green. Leave it.
-nightshift> seal --local
-[ok] lantern-row.invalid warm
-  host: lantern-row.invalid
-  addr: 192.0.2.10
-[warn] lantern-row.invalid stays on the card
-// lantern-row.invalid noted on the glass
-  lantern  [###-----]
-K.I.K.I. // Not a way out.
-K.I.K.I. // Quiet means the slate is quiet.
+
+nightshift> gpg --verify /opt/kits/ir-tools.tar.sig
+       gpg: Signature made Tue 22 Sep 2026 00:28:21 UTC
+       gpg:                using EDDSA key FACB2A6DC193FDAB
+       gpg: Good signature from "IR Tooling <ir@nightshift>"
+[ok]   toolkit signature valid  298 files  key FDAB

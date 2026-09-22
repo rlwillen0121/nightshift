@@ -13,7 +13,7 @@ func TestHeaderAndFirstBurstSnapshot(t *testing.T) {
 	opening := len(model.transcript)
 	var burst []string
 	model, burst = model.Trigger()
-	if len(burst) < burstMin || len(burst) > burstMax {
+	if !validBurst(burst) {
 		t.Fatalf("burst length %d", len(burst))
 	}
 	if len(model.transcript) != opening+len(burst) {

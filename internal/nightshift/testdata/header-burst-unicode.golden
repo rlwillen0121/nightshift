@@ -1,0 +1,29 @@
+╭─ NIGHTSHIFT ─────────────────────────────────────────────────────────╮
+│                                                                      │
+│     █   █ █████  ████ █   █ █████ █████ █   █ █████ █████ █████      │
+│     ██  █   █   █     █   █   █   █     █   █   █   █       █        │
+│     █ █ █   █   █ ███ █████   █   █████ █████   █   ████    █        │
+│     █  ██   █   █   █ █   █   █       █ █   █   █   █       █        │
+│     █   █ █████  ████ █   █   █   █████ █   █ █████ █       █        │
+│     ───────────────────────────────────────────────────────────      │
+│                                                                      │
+│             SEED 000000000000002A    CALLSIGN MOTHLIGHT              │
+│                                                                      │
+╰──────────────────────────────────────────────────────────────────────╯
+// a key appends one burst. enter hints, then advances. ctrl+c exits.
+
+   ▸ kernel link   ████████████████████ 100%
+   ▸ entropy pool  ████████████████████ 100%
+   ▸ cipher suite  ████████████████████ 100%
+   ▸ ghost relay   ████████████████████ 100%
+// uplink armed. nothing leaves this terminal.
+
+╭─ 01 BOOT ATTESTATION ────────────────────────────────────────────────╮
+│     Verify toolchain, keys, and host integrity.                      │
+╰──────────────────────────────────────────────────────────────────────╯
+
+ ❯ gpg --verify /opt/kits/ir-tools.tar.sig
+     gpg: Signature made Tue 22 Sep 2026 00:28:21 UTC
+     gpg:                using EDDSA key FACB2A6DC193FDAB
+     gpg: Good signature from "IR Tooling <ir@nightshift>"
+   ✓ toolkit signature valid  298 files  key FDAB
