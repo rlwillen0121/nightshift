@@ -6,8 +6,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/nightshift-demo-v5.gif" alt="NIGHTSHIFT terminal demo showing the boot sequence, live telemetry, and a traceroute map" width="100%">
+  <img src="docs/nightshift-demo-color.gif" alt="NIGHTSHIFT color terminal demo showing the boot sequence, live telemetry, and a traceroute map" width="100%">
 </p>
+
+<p align="center"><em>Color mode shown above. The same run also works in plain ASCII for smaller or monochrome terminals.</em></p>
 
 NIGHTSHIFT is a local terminal simulation written in Go. It turns a few keystrokes into a cinematic five phase shift: verify the host, follow a signal, correlate evidence, contain the incident, and close the handoff. The output is generated locally and stays fictional from start to finish.
 
@@ -33,6 +35,16 @@ go run ./cmd/nightshift --seed 42 --ascii --no-color --reduced-motion
 ```
 
 Use `nightshift --help` to see the available flags.
+
+## Hacker theater
+
+Want to look like a leet hacker in front of your friends and family? Give the color mode a wide terminal and let the shift run:
+
+```sh
+go run ./cmd/nightshift --seed 42
+```
+
+Press a key to launch a burst, press Enter to move between phases, and let the map draw the route. It is a fictional terminal performance: no network calls, no real hosts, and no changes to the computer.
 
 ## Controls
 
