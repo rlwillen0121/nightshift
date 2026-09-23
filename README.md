@@ -55,6 +55,8 @@ Press a key to launch a burst, press Enter to move between phases, and let the m
 | Enter before a burst | Show the current phase hint |
 | Ctrl+C | Exit the shift |
 
+The output keeps pace with you: the faster you type, the faster it scrolls, up to about 10x. Keys pressed while a burst is still playing speed it up on the spot, and the pace settles back to normal a second or two after you stop. A single deliberate keypress plays at normal speed.
+
 A complete shift moves through **Boot**, **Signal**, **Correlation**, **Containment**, and **Report**. The final Enter prints a debrief card with command, host, alert, and shift time counts plus a mock handoff grade. The transcript remains in scrollback, so the story keeps its history while the telemetry panel and map update in place.
 
 ## Agent theater

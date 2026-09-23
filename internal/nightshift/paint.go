@@ -2,6 +2,7 @@ package nightshift
 
 import (
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -51,6 +52,16 @@ type style struct {
 	motion   bool
 	bell     bool
 	callsign string
+	// pace waits out one effect delay. Nil sleeps the full delay.
+	pace func(time.Duration)
+}
+
+func (st style) wait(delay time.Duration) {
+	if st.pace != nil {
+		st.pace(delay)
+		return
+	}
+	sleep(delay)
 }
 
 func styleFor(config Config, callsign string) style {

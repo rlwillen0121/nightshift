@@ -34,6 +34,8 @@ type byteReader struct {
 	buf     []byte
 	i       int
 	scratch []byte
+	// arrived sees each chunk as it is read, before any key is classified.
+	arrived func(chunk []byte)
 }
 
 func (r *byteReader) buffered() bool { return r.i < len(r.buf) }
@@ -183,6 +185,43 @@ func (r *byteReader) peek(wait time.Duration) (byte, bool) {
 	return r.buf[r.i], true
 }
 
+// pull reads bytes the terminal already has ready and queues them behind any
+// unread bytes. The caller polls first, so the read does not block.
+func (r *byteReader) pull() (int, error) {
+	if cap(r.scratch) < 256 {
+		r.scratch = make([]byte, 256)
+	}
+	scratch := r.scratch[:256]
+	n, err := r.f.Read(scratch)
+	if n > 0 {
+		r.keep(scratch[:n])
+		return n, nil
+	}
+	if err == nil {
+		err = io.EOF
+	}
+	return 0, err
+}
+
+// keep moves a fresh chunk behind the unread bytes and wipes the old copies.
+func (r *byteReader) keep(chunk []byte) {
+	if r.arrived != nil {
+		r.arrived(chunk)
+	}
+	unread := r.buf[r.i:]
+	fresh := make([]byte, len(unread)+len(chunk))
+	copy(fresh, unread)
+	copy(fresh[len(unread):], chunk)
+	for i := range r.buf {
+		r.buf[i] = 0
+	}
+	for i := range chunk {
+		chunk[i] = 0
+	}
+	r.buf = fresh
+	r.i = 0
+}
+
 func (r *byteReader) fill(wait time.Duration) error {
 	if cap(r.scratch) < 256 {
 		r.scratch = make([]byte, 256)
@@ -204,13 +243,7 @@ func (r *byteReader) fill(wait time.Duration) error {
 	}
 	n, err := r.f.Read(scratch)
 	if n > 0 {
-		fresh := make([]byte, n)
-		copy(fresh, scratch[:n])
-		for i := 0; i < n; i++ {
-			scratch[i] = 0
-		}
-		r.buf = fresh
-		r.i = 0
+		r.keep(scratch[:n])
 		return nil
 	}
 	for i := range scratch {

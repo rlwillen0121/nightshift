@@ -330,7 +330,7 @@ func renderLines(output io.Writer, lines []string, st style) error {
 				if err := flush(); err != nil {
 					return err
 				}
-				sleep(fx.delays[i])
+				st.wait(fx.delays[i])
 			}
 			fmt.Fprintf(&pending, "\r%s%s\r\n", final, eraseLine)
 		}
@@ -338,7 +338,7 @@ func renderLines(output io.Writer, lines []string, st style) error {
 			if err := flush(); err != nil {
 				return err
 			}
-			sleep(pause)
+			st.wait(pause)
 		}
 	}
 	if hidden {
@@ -373,7 +373,7 @@ func renderTraceMap(output io.Writer, directive string, st style) error {
 		}
 		first = false
 		if st.motion && active < len(hops) {
-			sleep(millis(125))
+			st.wait(millis(125))
 		}
 	}
 	return nil
