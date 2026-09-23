@@ -148,7 +148,7 @@ type template func(b *burst) []string
 var phasePools = [phaseCount][]template{
 	PhaseBoot:        {keyAgent, integrityCheck, hostStatus, certProbe, processList, clockSkew, signatureCheck, diskUsage},
 	PhaseSignal:      {portScan, packetCapture, dnsLookup, traceRoute, socketList, flowTop, idsAlert},
-	PhaseCorrelation: {authLog, memoryDump, proxyLog, yaraScan, hostTimeline, idsAlert, packetCapture},
+	PhaseCorrelation: {authLog, memoryDump, proxyLog, yaraScan, hostTimeline, idsAlert, packetCapture, agentSwarm},
 	PhaseContainment: {firewallDeny, edrIsolate, evidenceSnapshot, secretRotate, stopProcess, processList, integrityCheck},
 	PhaseReport:      {sealReport, evidenceArchive, iocExport, ticketUpdate, integrityCheck, certProbe},
 }
@@ -447,6 +447,34 @@ func hostStatus(b *burst) []string {
 		lines = append(lines, field("uptime", fmt.Sprintf("%dd %02d:%02d", b.r.between(1, 90), b.r.intn(24), b.r.intn(60))))
 	}
 	return append(lines, meterLine(b.target.tag, b.r.between(1, 8)))
+}
+
+func agentSwarm(b *burst) []string {
+	roles := []struct {
+		name  string
+		model string
+	}{
+		{"scout", "sieve-3b"},
+		{"forensics", "trace-8b"},
+		{"network", "route-7b"},
+		{"policy", "guard-3b"},
+		{"synthesizer", "atlas-12b"},
+	}
+	count := len(roles)
+	lines := []string{
+		prompt(fmt.Sprintf("agent swarm spawn --target %s --count %d", b.target.tag, count)),
+		field("orchestrator", "nightshift-core  v0.7  local-only"),
+	}
+	for i := 0; i < count; i++ {
+		role := roles[i]
+		lines = append(lines, detail("agent-%02d  %-11s %-10s  %s", i+1, role.name, role.model, pick(b.r, []string{"ready", "watching", "queued"})))
+	}
+	lines = append(lines,
+		detail("mesh       %d agents  %d lanes  quorum %d/%d", count, b.r.between(2, count), count-1, count),
+		detail("consensus  %d/%d agents flag beacon path on %s", b.r.between(count-1, count), count, b.target.tag),
+		okLine("swarm complete  plan %s  no external actions", fmt.Sprintf("SWARM-%04d", b.r.between(1000, 9999))),
+	)
+	return lines
 }
 
 func keyAgent(b *burst) []string {

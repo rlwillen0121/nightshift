@@ -8,6 +8,19 @@ import (
 	"time"
 )
 
+func TestAgentSwarmBurstIsDeterministicAndLocal(t *testing.T) {
+	left := strings.Join(agentSwarm(newBurst(42, 3, PhaseCorrelation)), "\n")
+	right := strings.Join(agentSwarm(newBurst(42, 3, PhaseCorrelation)), "\n")
+	if left != right {
+		t.Fatal("same seed produced different agent swarm output")
+	}
+	for _, want := range []string{"agent swarm spawn", "orchestrator", "scout", "forensics", "network", "policy", "synthesizer", "local-only", "no external actions"} {
+		if !strings.Contains(left, want) {
+			t.Fatalf("agent swarm omitted %q: %s", want, left)
+		}
+	}
+}
+
 func TestThreatAndSignalWaveformFollowPhase(t *testing.T) {
 	boot := strings.Join(phaseBanner(PhaseBoot), "\n")
 	signal := strings.Join(phaseBanner(PhaseSignal), "\n")

@@ -57,12 +57,17 @@ Press a key to launch a burst, press Enter to move between phases, and let the m
 
 A complete shift moves through **Boot**, **Signal**, **Correlation**, **Containment**, and **Report**. The final Enter prints a debrief card with command, host, alert, and shift time counts plus a mock handoff grade. The transcript remains in scrollback, so the story keeps its history while the telemetry panel and map update in place.
 
+## Agent theater
+
+During Correlation, one seeded burst can launch a fictional local agent swarm. Five specialist roles work the same signal: **scout**, **forensics**, **network**, **policy**, and **synthesizer**. The transcript shows each model lane, the quorum, the consensus, and the resulting plan. The swarm is part of the simulation and ends with `no external actions`.
+
 ## What you will see
 
 - Phase banners with loaders, a settling signal waveform, a threat meter, and live telemetry.
 - Fictional port scans, packet captures, DNS answers, auth logs, process lists, firewall actions, and sealed reports.
 - An ASCII world map that traces hops through cities such as IAD, FRA, DXB, HKG, and SIN with made up latency.
 - Short radio messages from other analysts and occasional status glitches that resolve themselves.
+- A local AI agent swarm burst with scout, forensics, network, policy, and synthesizer roles that reports quorum and a fictional plan.
 - A final stats card that closes the shift with a clean handoff.
 
 ## Repeatable runs
