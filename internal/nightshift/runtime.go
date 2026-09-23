@@ -63,10 +63,15 @@ func Run(args []string, input, output, errorOutput *os.File) error {
 	if err = drawDashboard(output, dashboardLines(model), st, false); err != nil {
 		return fmt.Errorf("terminal session unavailable")
 	}
+	// Typing speed sets playback speed. Bytes are timed as they arrive, both
+	// here and while an effect is playing.
+	pace := &tempo{}
 	reader := &byteReader{
-		f:    input,
-		wait: func(timeout time.Duration) (bool, error) { return waitForInput(input, timeout) },
+		f:       input,
+		wait:    func(timeout time.Duration) (bool, error) { return waitForInput(input, timeout) },
+		arrived: func(chunk []byte) { pace.hit(time.Now(), typedKeys(chunk)) },
 	}
+	st.pace = (&pacer{tempo: pace, reader: reader, poll: reader.wait, clock: time.Now}).wait
 	dashboardVisible := liveDashboard
 	for {
 		if !reader.buffered() && liveDashboard && !model.finale {
