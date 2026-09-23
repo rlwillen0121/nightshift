@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/nightshift-demo-v2.gif" alt="NIGHTSHIFT terminal demo with telemetry, signal capture, and an animated traceroute map" width="100%">
+  <img src="docs/nightshift-demo-v4.gif" alt="NIGHTSHIFT terminal demo with telemetry, signal capture, and an animated traceroute map" width="100%">
 </p>
 
 NIGHTSHIFT is a local terminal simulation built for atmosphere: five scripted phases, realistic-looking console output, a seeded world map, radio chatter, live telemetry, and a final handoff card. Everything is fictional and generated locally. Hosts use `.invalid` names, addresses come from documentation ranges, and no commands are executed against your machine.
