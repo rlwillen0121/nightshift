@@ -61,6 +61,10 @@ A complete shift moves through **Boot**, **Signal**, **Correlation**, **Containm
 
 During Correlation, one seeded burst can launch a fictional local agent swarm. Five specialist roles work the same signal: **scout**, **forensics**, **network**, **policy**, and **synthesizer**. The transcript shows each model lane, the quorum, the consensus, and the resulting plan. The swarm is part of the simulation and ends with `no external actions`.
 
+## Fleet encryption theater
+
+Containment can stage a mass drive protection rollout for the fictional fleet. You will see AES-256-GCM policy, recovery key escrow with quorum approval, hosts moving through verification and sealing batches, and a final `all volumes protected` handoff. It is pure terminal theater: the app never encrypts a disk, deploys software, or contacts an external system.
+
 ## What you will see
 
 - Phase banners with loaders, a settling signal waveform, a threat meter, and live telemetry.
@@ -68,6 +72,7 @@ During Correlation, one seeded burst can launch a fictional local agent swarm. F
 - An ASCII world map that traces hops through cities such as IAD, FRA, DXB, HKG, and SIN with made up latency.
 - Short radio messages from other analysts and occasional status glitches that resolve themselves.
 - A local AI agent swarm burst with scout, forensics, network, policy, and synthesizer roles that reports quorum and a fictional plan.
+- A defensive fleet encryption burst that stages fictional volume sealing and recovery escrow across several hosts.
 - A final stats card that closes the shift with a clean handoff.
 
 ## Repeatable runs

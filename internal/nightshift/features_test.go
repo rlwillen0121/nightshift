@@ -21,6 +21,19 @@ func TestAgentSwarmBurstIsDeterministicAndLocal(t *testing.T) {
 	}
 }
 
+func TestFleetEncryptionBurstIsDeterministicAndDefensive(t *testing.T) {
+	left := strings.Join(fleetEncryption(newBurst(42, 3, PhaseContainment)), "\n")
+	right := strings.Join(fleetEncryption(newBurst(42, 3, PhaseContainment)), "\n")
+	if left != right {
+		t.Fatal("same seed produced different fleet encryption output")
+	}
+	for _, want := range []string{"fleet encrypt", "aes-256-gcm", "key escrow", "staged", "all volumes protected", "no external actions"} {
+		if !strings.Contains(left, want) {
+			t.Fatalf("fleet encryption omitted %q: %s", want, left)
+		}
+	}
+}
+
 func TestThreatAndSignalWaveformFollowPhase(t *testing.T) {
 	boot := strings.Join(phaseBanner(PhaseBoot), "\n")
 	signal := strings.Join(phaseBanner(PhaseSignal), "\n")

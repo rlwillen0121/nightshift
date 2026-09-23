@@ -149,7 +149,7 @@ var phasePools = [phaseCount][]template{
 	PhaseBoot:        {keyAgent, integrityCheck, hostStatus, certProbe, processList, clockSkew, signatureCheck, diskUsage},
 	PhaseSignal:      {portScan, packetCapture, dnsLookup, traceRoute, socketList, flowTop, idsAlert},
 	PhaseCorrelation: {authLog, memoryDump, proxyLog, yaraScan, hostTimeline, idsAlert, packetCapture, agentSwarm},
-	PhaseContainment: {firewallDeny, edrIsolate, evidenceSnapshot, secretRotate, stopProcess, processList, integrityCheck},
+	PhaseContainment: {firewallDeny, edrIsolate, evidenceSnapshot, secretRotate, stopProcess, processList, integrityCheck, fleetEncryption},
 	PhaseReport:      {sealReport, evidenceArchive, iocExport, ticketUpdate, integrityCheck, certProbe},
 }
 
@@ -473,6 +473,30 @@ func agentSwarm(b *burst) []string {
 		detail("mesh       %d agents  %d lanes  quorum %d/%d", count, b.r.between(2, count), count-1, count),
 		detail("consensus  %d/%d agents flag beacon path on %s", b.r.between(count-1, count), count, b.target.tag),
 		okLine("swarm complete  plan %s  no external actions", fmt.Sprintf("SWARM-%04d", b.r.between(1000, 9999))),
+	)
+	return lines
+}
+
+// fleetEncryption is a fictional containment sequence. It describes staged
+// volume protection and key escrow without touching a real disk or host.
+func fleetEncryption(b *burst) []string {
+	tags := []string{"web-01", "db-02", "vpn-gw", "build-07", "files-03", "dc-01", "k8s-n4", "mail-01"}
+	count := b.r.between(6, 10)
+	keyID := fmt.Sprintf("KMS-%04X", b.r.between(0x1000, 0xFFFF))
+	start := b.r.intn(len(tags))
+	lines := []string{
+		prompt(fmt.Sprintf("fleet encrypt --scope %d-hosts --cipher aes-256-gcm", count)),
+		field("policy", "volume-shield v2  local-only"),
+		field("key escrow", fmt.Sprintf("%s  quorum 2-of-3", keyID)),
+	}
+	for i := 0; i < 4; i++ {
+		tag := tags[(start+i)%len(tags)]
+		lines = append(lines, detail("batch-%02d  %-8s  staged  verify -> seal", i+1, tag))
+	}
+	lines = append(lines,
+		progressLine("volume seal"),
+		detail("rollout    %d/%d hosts  encrypted  escrowed", count, count),
+		okLine("all volumes protected  %s  no external actions", keyID),
 	)
 	return lines
 }
