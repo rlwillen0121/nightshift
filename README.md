@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/nightshift-demo-color.gif" alt="NIGHTSHIFT color terminal demo showing the boot sequence, live telemetry, and a traceroute map" width="100%">
+  <img src="docs/nightshift-demo-color-v2.gif" alt="NIGHTSHIFT color terminal demo showing the boot sequence, live telemetry, and a traceroute map" width="100%">
 </p>
 
 <p align="center"><em>Color mode shown above. The same run also works in plain ASCII for smaller or monochrome terminals.</em></p>
